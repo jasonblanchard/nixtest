@@ -58,6 +58,17 @@
           buildInputs = with pkgs; [
             nodejs_22
           ];
+          
+          # Set environment variables directly
+          MY_ENV_VAR = "some_value";
+          NODE_ENV = "development";
+          
+          # Or use shellHook for more complex setup
+          # shellHook = ''
+          #   export ANOTHER_VAR="hello"
+          #   echo "Welcome to the nixtest dev environment!"
+          #   echo "Node version: $(node --version)"
+          # '';
         };
 
         # App configuration for easy running
