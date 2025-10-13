@@ -79,14 +79,18 @@
               NODE_ENV = "development";
             };
 
-            enterShell = ''
-              echo "Welcome to the nixtest dev environment!"
-              echo "Node version: $(node --version)"
-            '';
+            # enterShell = ''
+            #   echo "Welcome to the nixtest dev environment!"
+            #   echo "Node version: $(node --version)"
+            # '';
 
             languages.javascript = {
               enable = true;
               package = pkgs.nodejs_22;
+            };
+
+            tasks."nixtest:hello" = {
+              exec = "node ./index.ts";
             };
           };
 
