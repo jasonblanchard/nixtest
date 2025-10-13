@@ -3,22 +3,32 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    devenv.url = "github:cachix/devenv";
   };
 
   outputs =
     {
       self,
       nixpkgs,
-      flake-utils,
-    }:
-    flake-utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
-      in
-      {
-        packages = {
+      devenv,
+      ...
+    }@inputs:
+    let
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "aarch64-darwin"
+      ];
+      forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f system);
+    in
+    {
+      packages = forEachSystem (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
           default = pkgs.stdenv.mkDerivation {
             pname = "nixtest";
             version = "1.0.0";
@@ -51,31 +61,50 @@
               platforms = pkgs.lib.platforms.all;
             };
           };
-        };
+        }
+      );
 
-        # Development shell
-        devShells.default = pkgs.mkShell {
-          buildInputs = with pkgs; [
-            nodejs_22
-          ];
-          
-          # Set environment variables directly
-          MY_ENV_VAR = "some_value";
-          NODE_ENV = "development";
-          
-          # Or use shellHook for more complex setup
-          # shellHook = ''
-          #   export ANOTHER_VAR="hello"
-          #   echo "Welcome to the nixtest dev environment!"
-          #   echo "Node version: $(node --version)"
-          # '';
-        };
+      devShells = forEachSystem (
+        system:
+        let
+          pkgs = nixpkgs.legacyPackages.${system};
+        in
+        {
+          default = devenv.lib.mkShell {
+            inherit inputs pkgs;
+            modules = [
+              {
+                # https://devenv.sh/reference/options/
+                packages = with pkgs; [
+                  nodejs_22
+                ];
 
-        # App configuration for easy running
-        apps.default = {
+                env = {
+                  MY_ENV_VAR = "some_value";
+                  NODE_ENV = "development";
+                };
+
+                enterShell = ''
+                  echo "Welcome to the nixtest dev environment!"
+                  echo "Node version: $(node --version)"
+                '';
+
+                # Optional: Configure languages
+                languages.javascript = {
+                  enable = true;
+                  package = pkgs.nodejs_22;
+                };
+              }
+            ];
+          };
+        }
+      );
+
+      apps = forEachSystem (system: {
+        default = {
           type = "app";
           program = "${self.packages.${system}.default}/bin/nixtest";
         };
-      }
-    );
+      });
+    };
 }
