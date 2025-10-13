@@ -2,109 +2,107 @@
   description = "A simple Node.js TypeScript program";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:cachix/devenv-nixpkgs/rolling";
     devenv.url = "github:cachix/devenv";
   };
 
   outputs =
-    {
-      self,
+    inputs@{
+      flake-parts,
       nixpkgs,
-      devenv,
       ...
-    }@inputs:
-    let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "x86_64-darwin"
-        "aarch64-darwin"
+    }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [
+        inputs.devenv.flakeModule
       ];
-      forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f system);
-    in
-    {
-      packages = forEachSystem (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
+
+      systems = nixpkgs.lib.systems.flakeExposed;
+
+      perSystem =
         {
-          default = pkgs.stdenv.mkDerivation {
-            pname = "nixtest";
-            version = "1.0.0";
+          config,
+          self',
+          inputs',
+          pkgs,
+          system,
+          ...
+        }:
+        {
+          # Per-system attributes can be defined here. The self' and inputs'
+          # module parameters provide easy access to attributes of the same
+          # system.
 
-            src = ./.;
+          # packages.default = pkgs.stdenv.mkDerivation {
+          #   pname = "nixtest";
+          #   version = "1.0.0";
 
-            buildInputs = with pkgs; [
+          #   src = ./.;
+
+          #   buildInputs = with pkgs; [
+          #     nodejs_22
+          #   ];
+
+          #   buildPhase = ''
+          #     # No transpilation needed - Node 22 supports TypeScript natively
+          #   '';
+
+          #   installPhase = ''
+          #     mkdir -p $out/bin
+          #     cp index.ts $out/bin/
+
+          #     # Create a wrapper script to run the TypeScript program directly
+          #     cat > $out/bin/nixtest << EOF
+          #     #!/usr/bin/env bash
+          #     ${pkgs.nodejs_22}/bin/node --experimental-strip-types $out/bin/index.ts
+          #     EOF
+          #     chmod +x $out/bin/nixtest
+          #   '';
+
+          #   meta = with pkgs.lib; {
+          #     description = "A simple Node.js TypeScript program";
+          #     license = pkgs.lib.licenses.isc;
+          #     platforms = pkgs.lib.platforms.all;
+          #   };
+          # };
+
+          # Devenv shell configuration
+          devenv.shells.default = {
+            # https://devenv.sh/reference/options/
+            
+            packages = with pkgs; [
               nodejs_22
             ];
 
-            buildPhase = ''
-              # No transpilation needed - Node 22 supports TypeScript natively
+            env = {
+              MY_ENV_VAR = "some_value";
+              NODE_ENV = "development";
+            };
+
+            enterShell = ''
+              echo "Welcome to the nixtest dev environment!"
+              echo "Node version: $(node --version)"
             '';
 
-            installPhase = ''
-              mkdir -p $out/bin
-              cp index.ts $out/bin/
-
-              # Create a wrapper script to run the TypeScript program directly
-              cat > $out/bin/nixtest << EOF
-              #!/usr/bin/env bash
-              ${pkgs.nodejs_22}/bin/node --experimental-strip-types $out/bin/index.ts
-              EOF
-              chmod +x $out/bin/nixtest
-            '';
-
-            meta = with pkgs.lib; {
-              description = "A simple Node.js TypeScript program";
-              license = pkgs.lib.licenses.isc;
-              platforms = pkgs.lib.platforms.all;
+            languages.javascript = {
+              enable = true;
+              package = pkgs.nodejs_22;
             };
           };
-        }
-      );
 
-      devShells = forEachSystem (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          default = devenv.lib.mkShell {
-            inherit inputs pkgs;
-            modules = [
-              {
-                # https://devenv.sh/reference/options/
-                packages = with pkgs; [
-                  nodejs_22
-                ];
-
-                env = {
-                  MY_ENV_VAR = "some_value";
-                  NODE_ENV = "development";
-                };
-
-                enterShell = ''
-                  echo "Welcome to the nixtest dev environment!"
-                  echo "Node version: $(node --version)"
-                '';
-
-                # Optional: Configure languages
-                languages.javascript = {
-                  enable = true;
-                  package = pkgs.nodejs_22;
-                };
-              }
-            ];
+          # App for running
+          apps.default = {
+            type = "app";
+            program = "${pkgs.writeShellScript "nixtest" ''
+              cd ${./.}
+              exec ${pkgs.nodejs_22}/bin/node index.ts
+            ''}";
           };
-        }
-      );
-
-      apps = forEachSystem (system: {
-        default = {
-          type = "app";
-          program = "${self.packages.${system}.default}/bin/nixtest";
         };
-      });
     };
+
+  nixConfig = {
+    extra-trusted-public-keys = "devenv.cachix.org-1:w1cLUi8dv3hnoSPGAuibQv+f9TZLr6cv/Hm9XgU50cw=";
+    extra-substituters = "https://devenv.cachix.org";
+  };
 }

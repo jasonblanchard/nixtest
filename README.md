@@ -23,3 +23,6 @@ Commands:
 
 
 ## devenv
+
+Commsnds
+- `nix develop --impure`
