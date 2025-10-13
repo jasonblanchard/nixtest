@@ -1,1 +1,6 @@
+# Nix build outputs
 result
+result-*
+
+# Flake
+.direnv/
