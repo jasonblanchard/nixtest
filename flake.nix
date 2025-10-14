@@ -34,52 +34,71 @@
           # system.
 
           # Build the application package
-          packages.default = pkgs.stdenv.mkDerivation {
-            pname = "nixtest";
-            version = "1.0.0";
+          # packages.default = pkgs.stdenv.mkDerivation {
+          #   pname = "nixtest";
+          #   version = "1.0.0";
 
-            src = ./.;
+          #   src = ./.;
 
-            buildInputs = with pkgs; [
-              nodejs_22
-            ];
+          #   buildInputs = with pkgs; [
+          #     nodejs_22
+          #   ];
 
-            buildPhase = ''
-              # No transpilation needed - Node 22 supports TypeScript natively
-            '';
+          #   buildPhase = ''
+          #     # No transpilation needed - Node 22 supports TypeScript natively
+          #   '';
 
-            installPhase = ''
-              mkdir -p $out/bin
-              cp index.ts $out/bin/
+          #   installPhase = ''
+          #     mkdir -p $out/bin
+          #     cp index.ts $out/bin/
 
-              # Create a wrapper script to run the TypeScript program directly
-              cat > $out/bin/nixtest << EOF
-              #!/usr/bin/env bash
-              ${pkgs.nodejs_22}/bin/node --experimental-strip-types $out/bin/index.ts
-              EOF
-              chmod +x $out/bin/nixtest
-            '';
+          #     # Create a wrapper script to run the TypeScript program directly
+          #     cat > $out/bin/nixtest << EOF
+          #     #!/usr/bin/env bash
+          #     ${pkgs.nodejs_22}/bin/node --experimental-strip-types $out/bin/index.ts
+          #     EOF
+          #     chmod +x $out/bin/nixtest
+          #   '';
 
-            meta = with pkgs.lib; {
-              description = "A simple Node.js TypeScript program";
-              license = pkgs.lib.licenses.isc;
-              platforms = pkgs.lib.platforms.all;
-            };
-          };
+          #   meta = with pkgs.lib; {
+          #     description = "A simple Node.js TypeScript program";
+          #     license = pkgs.lib.licenses.isc;
+          #     platforms = pkgs.lib.platforms.all;
+          #   };
+          # };
 
           # Docker image
+          # packages.docker = pkgs.dockerTools.buildLayeredImage {
+          #   name = "nixtest";
+          #   tag = "latest";
+            
+          #   contents = [
+          #     self'.packages.default
+          #     pkgs.coreutils
+          #     pkgs.bash
+          #   ];
+
+          #   config = {
+          #     Cmd = [ "/bin/nixtest" ];
+          #     Env = [
+          #       "NODE_ENV=production"
+          #     ];
+          #     WorkingDir = "/";
+          #   };
+          # };
+
           packages.docker = pkgs.dockerTools.buildLayeredImage {
             name = "nixtest";
             tag = "latest";
             
             contents = [
-              self'.packages.default
+              pkgs.nodejs_22
               pkgs.coreutils
               pkgs.bash
             ];
 
             config = {
-              Cmd = [ "/bin/nixtest" ];
+              Cmd = [ "${pkgs.nodejs_22}/bin/node" "./index.ts" ];
               Env = [
                 "NODE_ENV=production"
               ];
