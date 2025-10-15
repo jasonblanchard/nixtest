@@ -95,14 +95,19 @@
               pkgs.nodejs_22
               pkgs.coreutils
               pkgs.bash
+              # Copy the source files into the image
+              (pkgs.runCommand "nixtest-src" {} ''
+                mkdir -p $out/app
+                cp ${./index.ts} $out/app/index.ts
+              '')
             ];
 
             config = {
-              Cmd = [ "${pkgs.nodejs_22}/bin/node" "./index.ts" ];
+              Cmd = [ "${pkgs.nodejs_22}/bin/node" "--experimental-strip-types" "/app/index.ts" ];
               Env = [
                 "NODE_ENV=production"
               ];
-              WorkingDir = "/";
+              WorkingDir = "/app";
             };
           };
 
